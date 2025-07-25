@@ -59,7 +59,6 @@ REG_COMMON_BASE,
 
 /* Chip-specific register maps */
 extern const u32 wiz5100_map[NUM_REGS];
-extern const u32 wiz5200_map[NUM_REGS];
 extern const u32 wiz5500_map[NUM_REGS];
 extern const u32 wiz6100_map[NUM_REGS];
 extern const u32 wiz6300_map[NUM_REGS];
@@ -67,7 +66,7 @@ extern const u32 wiz6300_map[NUM_REGS];
 //#define MR   (priv->map[IDX_MR])
 
 /*
- * W5100/W5200/W5500 common registers
+ * W5100/W5500 common registers
  */
 
 // W6100 register map (기존 W5100/W5500 매크로 이름 그대로 사용하면서 주소만 W6100에 맞게 수정)
@@ -155,8 +154,7 @@ extern const u32 wiz6300_map[NUM_REGS];
 #define W5500_Sn_RXMEM_SIZE(n)	(0x1001e + (n) * 0x40000) /* Sn RX Memory Size */
 #define W5500_Sn_TXMEM_SIZE(n)	(0x1001f + (n) * 0x40000) /* Sn TX Memory Size */
 
-#define W5200_Sn_RXMEM_SIZE(n)	(0x401e + (n) * 0x0100) /* Sn RX Memory Size */
-#define W5200_Sn_TXMEM_SIZE(n)	(0x401f + (n) * 0x0100) /* Sn TX Memory Size */
+
 
 #define W6100_Sn_RXMEM_SIZE(n)  (Sn_RX_BSR +(((1+4*n)<<3)<<16))  /* Sn RX Memory Size */
 #define W6100_Sn_TXMEM_SIZE(n)  (Sn_TX_BSR +(((1+4*n)<<3)<<16)) /* Sn TX Memory Size */

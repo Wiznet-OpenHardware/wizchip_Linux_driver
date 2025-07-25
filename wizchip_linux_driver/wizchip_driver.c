@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Ethernet driver for the WIZnet W5100 , W5200 , W5500, W6100 , W6300 chip.
+ * Ethernet driver for the WIZnet W5100 , W5500, W6100 , W6300 chip.
  *
  * Copyright (C) 2006-2008 WIZnet Co.,Ltd.
  * Copyright (C) 2012 Mike Sinkovsky <msink@permonline.ru>
@@ -544,23 +544,6 @@ static void w5100_memory_configure(struct wizchip_priv *priv)
 	wizchip_write(priv, TMSR, 0x03);
 }
 
-static void w5200_memory_configure(struct wizchip_priv *priv)
-{
-	int i;
-
-	/* Configure internal RX memory as 16K RX buffer and
-	 * internal TX memory as 16K TX buffer
-	 */
-	wizchip_write(priv, W5200_Sn_RXMEM_SIZE(0), 0x10);
-	wizchip_write(priv, W5200_Sn_TXMEM_SIZE(0), 0x10);
-
-	for (i = 1; i < 8; i++) {
-		wizchip_write(priv, W5200_Sn_RXMEM_SIZE(i), 0);
-		wizchip_write(priv, W5200_Sn_TXMEM_SIZE(i), 0);
-	}
-}
-
-
 
 static void w5500_memory_configure(struct wizchip_priv *priv)
 {
@@ -623,11 +606,6 @@ static int wizchip_hw_reset(struct wizchip_priv *priv)
 		case W5100:
 			printk(KERN_INFO "   switch (priv->ops->chip_id) 5100  \n" );
 			w5100_memory_configure(priv);
-			rtr = RTR;
-			break;
-		case W5200:
-			printk(KERN_INFO "   switch (priv->ops->chip_id) 5200  \n" );
-			w5200_memory_configure(priv);
 			rtr = RTR;
 			break;
 		case W5500:
@@ -1143,14 +1121,6 @@ int wizchip_probe(struct device *dev, const struct wizchip_ops *ops,
 	case W5100:
 		priv->map = wiz5100_map;
 		priv->s0_regs = wiz5100_map[REG_S0_REGS];
-		priv->s0_tx_buf = TX_MEM_START;
-		priv->s0_tx_buf_size = TX_MEM_SIZE;
-		priv->s0_rx_buf = RX_MEM_START;
-		priv->s0_rx_buf_size = RX_MEM_SIZE;
-		break;
-	case W5200:
-		priv->map = wiz5200_map;
-		priv->s0_regs = wiz5200_map[REG_S0_REGS];
 		priv->s0_tx_buf = TX_MEM_START;
 		priv->s0_tx_buf_size = TX_MEM_SIZE;
 		priv->s0_rx_buf = RX_MEM_START;

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Ethernet driver for the WIZnet W5100/W5200/W5500 chip.
+ * Ethernet driver for the WIZnet W5100/W5500 chip.
  *
  * Copyright (C) 2016 Akinobu Mita <akinobu.mita@gmail.com>
  *
  * Datasheet:
  * http://www.wiznet.co.kr/wp-content/uploads/wiznethome/Chip/W5100/Document/W5100_Datasheet_v1.2.6.pdf
- * http://wiznethome.cafe24.com/wp-content/uploads/wiznethome/Chip/W5200/Documents/W5200_DS_V140E.pdf
  * http://wizwiki.net/wiki/lib/exe/fetch.php?media=products:w5500:w5500_ds_v106e_141230.pdf
  */
 
@@ -125,161 +124,6 @@ static const struct wizchip_ops w5100_spi_ops = {
 /* End of W5100 Implementation */
 
 
-/******************************************************************************
- * W5200 SPI Interface Implementation  
- * - Enhanced SPI operations with variable length support
- * - Uses mutex for command buffer protection  
- * - Supports efficient bulk transfers with DMA alignment
- * - Uses 0x80 opcode for write operations
- *****************************************************************************/
-
-#define W5200_SPI_WRITE_OPCODE 0x80
-
-// ...existing w5200 functions...
-
-
-struct w5200_spi_priv {
-	/* Serialize access to cmd_buf */
-	struct mutex cmd_lock;
-
-	/* DMA (thus cache coherency maintenance) requires the
-	 * transfer buffers to live in their own cache lines.
-	 */
-	u8 cmd_buf[4] ____cacheline_aligned;
-};
-
-static struct w5200_spi_priv *w5200_spi_priv(struct net_device *ndev)
-{
-	return wizchip_ops_priv(ndev);
-}
-
-static int w5200_spi_init(struct net_device *ndev)
-{
-	struct w5200_spi_priv *spi_priv = w5200_spi_priv(ndev);
-
-	mutex_init(&spi_priv->cmd_lock);
-
-	return 0;
-}
-
-static int w5200_spi_read(struct net_device *ndev, u32 addr)
-{
-	struct spi_device *spi = to_spi_device(ndev->dev.parent);
-	u8 cmd[4] = { addr >> 8, addr & 0xff, 0, 1 };
-	u8 data;
-	int ret;
-
-	ret = spi_write_then_read(spi, cmd, sizeof(cmd), &data, 1);
-
-	return ret ? ret : data;
-}
-
-static int w5200_spi_write(struct net_device *ndev, u32 addr, u8 data)
-{
-	struct spi_device *spi = to_spi_device(ndev->dev.parent);
-	u8 cmd[5] = { addr >> 8, addr & 0xff, W5200_SPI_WRITE_OPCODE, 1, data };
-
-	return spi_write_then_read(spi, cmd, sizeof(cmd), NULL, 0);
-}
-
-static int w5200_spi_read16(struct net_device *ndev, u32 addr)
-{
-	struct spi_device *spi = to_spi_device(ndev->dev.parent);
-	u8 cmd[4] = { addr >> 8, addr & 0xff, 0, 2 };
-	__be16 data;
-	int ret;
-
-	ret = spi_write_then_read(spi, cmd, sizeof(cmd), &data, sizeof(data));
-
-	return ret ? ret : be16_to_cpu(data);
-}
-
-static int w5200_spi_write16(struct net_device *ndev, u32 addr, u16 data)
-{
-	struct spi_device *spi = to_spi_device(ndev->dev.parent);
-	u8 cmd[6] = {
-		addr >> 8, addr & 0xff,
-		W5200_SPI_WRITE_OPCODE, 2,
-		data >> 8, data & 0xff
-	};
-
-	return spi_write_then_read(spi, cmd, sizeof(cmd), NULL, 0);
-}
-
-static int w5200_spi_readbulk(struct net_device *ndev, u32 addr, u8 *buf,
-			      int len)
-{
-	struct spi_device *spi = to_spi_device(ndev->dev.parent);
-	struct w5200_spi_priv *spi_priv = w5200_spi_priv(ndev);
-	struct spi_transfer xfer[] = {
-		{
-			.tx_buf = spi_priv->cmd_buf,
-			.len = sizeof(spi_priv->cmd_buf),
-		},
-		{
-			.rx_buf = buf,
-			.len = len,
-		},
-	};
-	int ret;
-
-	mutex_lock(&spi_priv->cmd_lock);
-
-	spi_priv->cmd_buf[0] = addr >> 8;
-	spi_priv->cmd_buf[1] = addr;
-	spi_priv->cmd_buf[2] = len >> 8;
-	spi_priv->cmd_buf[3] = len;
-	ret = spi_sync_transfer(spi, xfer, ARRAY_SIZE(xfer));
-
-	mutex_unlock(&spi_priv->cmd_lock);
-
-	return ret;
-}
-
-static int w5200_spi_writebulk(struct net_device *ndev, u32 addr, const u8 *buf,
-			       int len)
-{
-	struct spi_device *spi = to_spi_device(ndev->dev.parent);
-	struct w5200_spi_priv *spi_priv = w5200_spi_priv(ndev);
-	struct spi_transfer xfer[] = {
-		{
-			.tx_buf = spi_priv->cmd_buf,
-			.len = sizeof(spi_priv->cmd_buf),
-		},
-		{
-			.tx_buf = buf,
-			.len = len,
-		},
-	};
-	int ret;
-
-	mutex_lock(&spi_priv->cmd_lock);
-
-	spi_priv->cmd_buf[0] = addr >> 8;
-	spi_priv->cmd_buf[1] = addr;
-	spi_priv->cmd_buf[2] = W5200_SPI_WRITE_OPCODE | (len >> 8);
-	spi_priv->cmd_buf[3] = len;
-	ret = spi_sync_transfer(spi, xfer, ARRAY_SIZE(xfer));
-
-	mutex_unlock(&spi_priv->cmd_lock);
-
-	return ret;
-}
-
-static const struct wizchip_ops w5200_ops = {
-	.may_sleep = true,
-	.chip_id = W5200,
-	.read = w5200_spi_read,
-	.write = w5200_spi_write,
-	.read16 = w5200_spi_read16,
-	.write16 = w5200_spi_write16,
-	.readbulk = w5200_spi_readbulk,
-	.writebulk = w5200_spi_writebulk,
-	.init = w5200_spi_init,
-};
-
-
-/* End of W5200 Implementation */
 
 /******************************************************************************
  * W5500 SPI Interface Implementation
@@ -873,13 +717,12 @@ static const struct wizchip_ops w6300_ops = {
  * Common Driver Infrastructure
  * - Device tree matching and probe functions
  * - Unified driver registration and management
- * - Support for all WIZnet chip variants (W5100/W5200/W5500/W6100/W6300)
+ * - Support for all WIZnet chip variants (W5100/W5500/W6100/W6300)
  *****************************************************************************/
 
 
 static const struct of_device_id wizchip_of_match[] = {
 	{ .compatible = "wiznet,w5100", .data = (const void*)W5100, },
-	{ .compatible = "wiznet,w5200", .data = (const void*)W5200, },
 	{ .compatible = "wiznet,w5500", .data = (const void*)W5500, },
 	{ .compatible = "wiznet,w6100", .data = (const void*)W6100, },
 	{ .compatible = "wiznet,w6300", .data = (const void*)W6300, },
@@ -920,11 +763,6 @@ static int wizchip_spi_probe(struct spi_device *spi)
 		ops = &w5100_spi_ops;
 		priv_size = 0;
 		break;
-	case W5200:
-		printk(KERN_INFO "wiznet chip test - driver_data = W5200\n");
-		ops = &w5200_ops;
-		priv_size = sizeof(struct w5200_spi_priv);
-		break;
 	case W5500:
 		printk(KERN_INFO "wiznet chip test - driver_data = W5500\n");
 		ops = &w5500_ops;
@@ -957,7 +795,6 @@ static void wizchip_spi_remove(struct spi_device *spi)
 
 static const struct spi_device_id wizchip_spi_ids[] = {
 	{ "w5100", W5100 },
-	{ "w5200", W5200 },
 	{ "w5500", W5500 },
 	{ "w6100", W6100 },
 	{ "w6300", W6300 },
@@ -978,6 +815,6 @@ static struct spi_driver wizchip_spi_driver = {
 };
 module_spi_driver(wizchip_spi_driver);
 
-MODULE_DESCRIPTION("WIZnet W5100/W5200/W5500/w6100/w6300 Ethernet driver for SPI mode");
+MODULE_DESCRIPTION("WIZnet W5100/W5500/w6100/w6300 Ethernet driver for SPI mode");
 MODULE_AUTHOR("Akinobu Mita <akinobu.mita@gmail.com>");
 MODULE_LICENSE("GPL");
