@@ -1,0 +1,89 @@
+/dts-v1/;
+
+/ {
+	compatible = "brcm,bcm2835";
+
+	fragment@0 {
+		target = <0xffffffff>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@1 {
+		target = <0xffffffff>;
+
+		__dormant__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@2 {
+		target = <0xffffffff>;
+
+		__overlay__ {
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
+			status = "okay";
+
+			w5500@0 {
+				compatible = "wiznet,w6100";
+				reg = <0x00>;
+				pinctrl-names = "default";
+				pinctrl-0 = <0x01>;
+				interrupt-parent = <0xffffffff>;
+				interrupts = <0x19 0x08>;
+				spi-max-frequency = <0x2faf080>;
+				status = "okay";
+				phandle = <0x02>;
+			};
+		};
+	};
+
+	fragment@3 {
+		target = <0xffffffff>;
+
+		__overlay__ {
+
+			eth1_pins {
+				brcm,pins = <0x19>;
+				brcm,function = <0x00>;
+				brcm,pull = <0x00>;
+				phandle = <0x01>;
+			};
+		};
+	};
+
+	__overrides__ {
+		int_pin = [00 00 00 02 69 6e 74 65 72 72 75 70 74 73 3a 30 00 00 00 00 01 62 72 63 6d 2c 70 69 6e 73 3a 30 00];
+		speed = <0x02 0x7370692d 0x6d61782d 0x66726571 0x75656e63 0x793a3000>;
+		cs = [00 00 00 02 72 65 67 3a 30 00 00 00 00 00 21 30 3d 31 00];
+	};
+
+	__fixups__ {
+		spidev0 = "/fragment@0:target:0";
+		spidev1 = "/fragment@1:target:0";
+		spi0 = "/fragment@2:target:0";
+		gpio = "/fragment@2/__overlay__/w5500@0:interrupt-parent:0\0/fragment@3:target:0";
+	};
+
+	__local_fixups__ {
+
+		fragment@2 {
+
+			__overlay__ {
+
+				w5500@0 {
+					pinctrl-0 = <0x00>;
+				};
+			};
+		};
+
+		__overrides__ {
+			int_pin = <0x00 0x11>;
+			speed = <0x00>;
+			cs = <0x00>;
+		};
+	};
+};
