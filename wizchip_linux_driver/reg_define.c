@@ -22,7 +22,7 @@ const u32 wiz5100_map[NUM_REGS] = {
     
     [REG_RMSR        ]      = 0x001a,   /* RX Memory Size Register */
     [REG_TMSR        ]      = 0x001b,   /* TX Memory Size Register */ 
-    // Verified up to this point
+  
     
     /* Socket Registers (relative offsets from socket base) */
     [REG_S0_REGS     ]      = 0x0400,   /* Socket 0 register base */
@@ -71,7 +71,7 @@ const u32 wiz5500_map[NUM_REGS] = {
     /* Common Registers (0x0000 ~ 0x003F) */
     [REG_COMMON_BASE ]      = 0x0000,
     [REG_COMMON_REGS ]      = 0x0000,
-    [REG_COMMON_REGS_LEN]   = 0x003F,   /* Common register length */
+    [REG_COMMON_REGS_LEN]   = 0x0040,   /* Common register length */
     
     [REG_MR          ]      = 0x0000,   /* Mode Register */
         [REG_MR_RST  ]      = 0x80,     /* S/W reset */
@@ -92,8 +92,8 @@ const u32 wiz5500_map[NUM_REGS] = {
     [REG_TMSR        ]      = 0x0000,   /* Not used in W5500 - individual socket memory config */
     
     /* Socket Registers (W5500 uses different addressing with BSB) */
-    [REG_S0_REGS     ]      = 0x0000,   /* Socket 0 register base (BSB=0x08) */
-    [REG_S0_REGS_LEN ]      = 0x0030,   /* Socket register length */
+    [REG_S0_REGS     ]      = 0x10000,   /* Socket 0 register base (BSB=0x08) */
+    [REG_S0_REGS_LEN ]      = 0x0040,   /* Socket register length */
     
     [REG_Sn_MR       ]      = 0x0000,   /* Socket n Mode Register (relative) */
         [REG_S0_MR_MACRAW]  = 0x04,     /* MAC RAW mode */

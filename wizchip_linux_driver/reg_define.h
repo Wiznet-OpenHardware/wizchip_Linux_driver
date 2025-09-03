@@ -66,7 +66,7 @@ extern const u32 wiz6300_map[NUM_REGS];
 //#define MR   (priv->map[IDX_MR])
 
 /*
- * W5100/W5500 common registers
+ *  common registers
  */
 
 // W6100 register map (기존 W5100/W5500 매크로 이름 그대로 사용하면서 주소만 W6100에 맞게 수정)
