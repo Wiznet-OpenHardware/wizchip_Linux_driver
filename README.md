@@ -1,4 +1,4 @@
-#development environment
+# development environment
 
 ```bash
 lihan@raspberrypi:~ $ uname -r
@@ -33,5 +33,10 @@ wizchip_Linux_driver
 4 directories, 12 files
 ```
 
-
+# how to build 
+``` bash
+cd ./wizchip_linux_driver
+sudo chmod +x ./install_wizchip_driver.sh
+sudo ./install_wizchip_driver.sh
+```
 
