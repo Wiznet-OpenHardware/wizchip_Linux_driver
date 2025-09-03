@@ -426,14 +426,13 @@ static int wizchip_readbuf(struct wizchip_priv *priv, u16 offset, u8 *buf, int l
 //	printk(KERN_INFO "1rd offset = 0x%1d \n", offset);
 
 	offset %= mem_size;
-//	printk(KERN_INFO "2rd offset = 0x%1d \n", offset);
 	addr = mem_start + offset;
        if (offset + len > mem_size) {
                remain = (offset + len) % mem_size;
                len = mem_size - offset;
        }
-
-
+	// printk(KERN_INFO "wizchip_readbuf: offset = 0x%08x \n", addr);
+	// printk(KERN_INFO "wizchip_readbuf: offset = 0x%08x \n", addr);
 	ret = wizchip_readbulk(priv, addr, buf, len);
 	if (ret || !remain)
 //	if (remain>0)
@@ -448,20 +447,19 @@ static int wizchip_writebuf(struct wizchip_priv *priv, u16 offset, const u8 *buf
 	u32 addr;
 	int ret;
 	int remain = 0;
-
+	
 	const u32 mem_start =TX_MEM_START;
 	const u16 mem_size =TX_MEM_SIZE;
 
 	offset %= mem_size;
 	addr = mem_start + offset;
 
+
 	if (offset + len > mem_size) {
 		remain = (offset + len) % mem_size;
 		len = mem_size - offset;
-//		len = len - remain;
 	}
-//		remain = ((int)offset + len) %0x4000;
-//		len = len - remain;
+
 
 	ret = wizchip_writebulk(priv, addr, buf, len);
 	if (ret || !remain)
@@ -488,7 +486,6 @@ static int wizchip_reset(struct wizchip_priv *priv)
 static int wizchip_command(struct wizchip_priv *priv, u16 cmd)
 {
 	unsigned long timeout;
-       // printk(KERN_INFO "   wizchip_command 0x%08x // 0x%04x \n", W5100_S0_CR(priv), cmd );
 
 	wizchip_write(priv, S0_CR(priv), cmd);
 
@@ -521,6 +518,7 @@ static void wizchip_socket_intr_mask(struct wizchip_priv *priv, u8 mask)
 	else
 		imr = IMR;
 
+	// wizchip_write(priv, 0x042c,0xf0);
 	wizchip_write(priv, imr, mask);
 }
 
@@ -593,28 +591,20 @@ static int wizchip_hw_reset(struct wizchip_priv *priv)
 	wizchip_disable_intr(priv);
 	wizchip_write_macaddr(priv);
 
-	// PHY 설정 (Auto Negotiation + PHY Reset 한번 줌)
-	// 1. 강제 설정
-	wizchip_write(priv, PHYCFG,0xE8); // Auto + Reset bit set
-	udelay(10);
-	wizchip_write(priv, PHYCFG, PHYCFG_AUTONEG);  // Reset bit clear (AutoNeg 시작)
-
-	//	wizchip_write(priv, PHYCFG, PHYCFG_AUTONEG);
-	//	udelay(10);  // 10us 정도 잠깐 대기
-	//	wizchip_write(priv, PHYCFG, 0xC8);
 	switch (priv->ops->chip_id) {
 		case W5100:
-			printk(KERN_INFO "   switch (priv->ops->chip_id) 5100  \n" );
 			w5100_memory_configure(priv);
 			rtr = RTR;
 			break;
 		case W5500:
-			printk(KERN_INFO "   switch (priv->ops->chip_id) 5500  \n" );
 			w5500_memory_configure(priv);
 			rtr = RTR;
 			break;
 		case W6100:
-			printk(KERN_INFO "   switch (priv->ops->chip_id) 6100  \n" );
+			w6100_memory_configure(priv);
+			rtr = RTR;
+			break;
+		case W6300:
 			w6100_memory_configure(priv);
 			rtr = RTR;
 			break;
@@ -622,15 +612,12 @@ static int wizchip_hw_reset(struct wizchip_priv *priv)
 			return -EINVAL;
 	}
 	int reset = wizchip_read16(priv, rtr) ; 
+
 	if (reset != RTR_DEFAULT)
 	{	
-		printk(KERN_INFO "reset =  %d RTR_DEFAULT = %d  \n" , reset , RTR_DEFAULT);
 		return -ENODEV;
 	}
 	udelay(1000);
-	
-	u8 phycfg = wizchip_read(priv, 0x3000);
-	printk(KERN_INFO "W6100 PHYCFG = 0x%02X (Link %s)\n", phycfg, (phycfg & 0x01) ? "UP" : "DOWN");
 
 	return 0;
 }
@@ -639,42 +626,21 @@ static int wizchip_hw_reset(struct wizchip_priv *priv)
 static void wizchip_hw_start(struct wizchip_priv *priv)
 {
 
-#if 0 //original code 
-
+	u8 mode = S0_MR_MACRAW;
 	if (!priv->promisc) {
 		if (priv->ops->chip_id == W5500)
 			mode |= S0_MR_MF;
 		else
 			mode |= S0_MR_MF;
 	}
-	w5100_write(priv, W5100_S0_MR(priv), mode);
-	w5100_command(priv, S0_CR_OPEN);
-	w5100_enable_intr(priv);
-#endif 
-	int test = wizchip_read(priv ,0x000000);
+	u8 getdata = wizchip_read(priv, S0_MR(priv));
 
-	test = wizchip_read(priv ,0x002004);
-	test = wizchip_read(priv ,0x080000);
+	wizchip_write(priv, S0_MR(priv), mode);
+	getdata = wizchip_read(priv, S0_MR(priv));
 
-	test = wizchip_read(priv ,0x080024);
-	//wizchip_write(priv, 0x080000, mode);
-	wizchip_write(priv, 0x080000, 0x07);
-
-	mdelay(500);
-	mdelay(500);
-
-	test = wizchip_read(priv ,0x080000);
-	test = wizchip_read(priv ,0x080024);
 
 	wizchip_command(priv, S0_CR_OPEN);
-	 test = wizchip_read(priv ,0x080024);
-	 test = wizchip_read(priv ,0x080000);
 	wizchip_enable_intr(priv);
-
-
-	 test = wizchip_read(priv ,0x080108);
-	 test = wizchip_read(priv ,0x080200);
-	 test = wizchip_read(priv ,0x080220);
 
 }
 
@@ -777,25 +743,16 @@ static void wizchip_tx_skb(struct net_device *ndev, struct sk_buff *skb)
     struct wizchip_priv *priv = netdev_priv(ndev);
     u16 offset;
 
-    // 1. TX 버퍼 여유 확인
-    while (wizchip_read16(priv, S0_TX_FSR(priv)) < 0x2000)
-        cpu_relax();
-
-    // 2. 데이터 write
     offset = wizchip_read16(priv, S0_TX_WR(priv));
+
     wizchip_writebuf(priv, offset, skb->data, skb->len);
     wizchip_write16(priv, S0_TX_WR(priv), offset + skb->len);
 
     ndev->stats.tx_bytes += skb->len;
     ndev->stats.tx_packets++;
+
     dev_kfree_skb(skb);
-
-    // 3. SEND 명령 (내부 대기 포함)
     wizchip_command(priv, S0_CR_SEND);
-
-	// 4. (선택) SEND_OK 비트 클리어
-	// if (wizchip_read(priv, S0_IR(priv)), S0_IR_SENDOK)
-	// wizchip_write(priv, S0_IR(priv), S0_IR_SENDOK);
 }
 
 static void wizchip_tx_work(struct work_struct *work)
@@ -810,24 +767,7 @@ static void wizchip_tx_work(struct work_struct *work)
 		return;
 	wizchip_tx_skb(priv->ndev, skb);
 }
-#if 0
-static netdev_tx_t wizchip_start_tx(struct sk_buff *skb, struct net_device *ndev)
-{
-    struct wizchip_priv *priv = netdev_priv(ndev);
-    unsigned long flags;
 
-    /* 송신 큐 정지 */
-    netif_stop_queue(ndev);
-
-    /* 동기 전송 경로로 바로 전송 */
-    wizchip_tx_skb(ndev, skb);
-
-    /* 전송 완료 후 송신 큐 재개 */
-    netif_wake_queue(ndev);
-
-    return NETDEV_TX_OK;
-}
-#else
 static netdev_tx_t wizchip_start_tx(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct wizchip_priv *priv = netdev_priv(ndev);
@@ -844,7 +784,6 @@ static netdev_tx_t wizchip_start_tx(struct sk_buff *skb, struct net_device *ndev
 
 	return NETDEV_TX_OK;
 }
-#endif 
 
 static struct sk_buff *wizchip_rx_skb(struct net_device *ndev)
 {
@@ -854,15 +793,15 @@ static struct sk_buff *wizchip_rx_skb(struct net_device *ndev)
 	u16 offset;
 	u8 header[2];
 	u16 rx_buf_len = wizchip_read16(priv, S0_RX_RSR(priv));
-	
-	if (rx_buf_len == 0)
+
+	if (rx_buf_len == 0){
 		return NULL;
+	}
 
-	offset = wizchip_read16(priv, S0_RX_RD(priv));
-
+	offset = (wizchip_read16(priv, S0_RX_RD(priv)));
 	wizchip_readbuf(priv, offset, header, 2);
-	rx_len = get_unaligned_be16(header) - 2;
-
+	rx_len = get_unaligned_be16(header) ;
+  
 	skb = netdev_alloc_skb_ip_align(ndev, rx_len);
 	if (unlikely(!skb)) {
 		wizchip_write16(priv, S0_RX_RD(priv), offset + rx_buf_len);
@@ -873,7 +812,6 @@ static struct sk_buff *wizchip_rx_skb(struct net_device *ndev)
 
 	skb_put(skb, rx_len);
 	wizchip_readbuf(priv, offset + 2, skb->data, rx_len);
-
 	wizchip_write16(priv, S0_RX_RD(priv), offset + 2 + rx_len);
 	wizchip_command(priv, S0_CR_RECV);
 	skb->protocol = eth_type_trans(skb, ndev);
@@ -890,8 +828,9 @@ static void wizchip_rx_work(struct work_struct *work)
 					       rx_work);
 	struct sk_buff *skb;
 
-	while ((skb = wizchip_rx_skb(priv->ndev)))
+	while ((skb = wizchip_rx_skb(priv->ndev))) {
 		netif_rx(skb);
+	}
 
 	wizchip_enable_intr(priv);
 }
@@ -923,10 +862,10 @@ static irqreturn_t wizchip_interrupt(int irq, void *ndev_instance)
 	struct net_device *ndev = ndev_instance;
 	struct wizchip_priv *priv = netdev_priv(ndev);
 
-	int ir = wizchip_read(priv, S0_IR(priv));
+	int ir = wizchip_read(priv, 0x0402);
 	if (!ir)
 		return IRQ_NONE;
-//	wizchip_write(priv, S0_IR(priv), ir);
+
 	wizchip_write(priv, set_S0_IR(priv), ir);
 
 	if (ir & S0_IR_SENDOK) {

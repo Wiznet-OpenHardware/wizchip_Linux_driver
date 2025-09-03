@@ -1,0 +1,4 @@
+/wizchip_linux_driver/build
+wizchip_linux_driver/dts/w5500-driver.dtbo
+wizchip_linux_driver/modules.order
+/wizchip_linux_driver/output
