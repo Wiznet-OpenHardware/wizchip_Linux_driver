@@ -671,7 +671,7 @@ static int w5300_resume(struct device *dev)
 		    gpio_get_value(priv->link_gpio) != 0)
 			netif_carrier_on(ndev);
 	}
-	return 0;s
+	return 0;
 }
 #endif /* CONFIG_PM_SLEEP */
 
